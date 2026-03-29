@@ -11,7 +11,7 @@ let chat = JSON.parse(localStorage.getItem('chat')) || [];
 function renderChat() {
   const container = document.getElementById('chatMessages');
   container.innerHTML = chat.map(c=>`<div><strong>${c.username}:</strong> ${c.text}</div>`).join('');
-  container.scrollTop = container.scrollHeight; // auto scroll to bottom
+  container.scrollTop = container.scrollHeight; // auto scroll
 }
 
 function sendChat() {
@@ -23,6 +23,5 @@ function sendChat() {
   renderChat();
 }
 
-// auto-render chat on load
 renderChat();
 </script>
