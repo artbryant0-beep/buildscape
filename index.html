@@ -33,6 +33,7 @@
 <!-- Your existing Buildscape content stays here -->
 <h1>Level Up!</h1>
 <p>Welcome to Buildscape. 🎮</p>
+<!-- Add more existing Level Up HTML here as needed -->
 
 <!-- Login/Signup overlay -->
 <div id="loginOverlay">
@@ -43,14 +44,15 @@
         <button onclick="signup()">Sign Up</button>
         <button onclick="login()">Login</button>
         <div id="dashboardMessage"></div>
+        <button id="continueBtn" style="display:none;" onclick="closeOverlay()">Continue</button>
     </div>
 </div>
 
 <script>
-    // Check if user exists in localStorage
     let user = JSON.parse(localStorage.getItem('user'));
     const overlay = document.getElementById('loginOverlay');
     const message = document.getElementById('dashboardMessage');
+    const continueBtn = document.getElementById('continueBtn');
 
     if(user){
         showDashboard(user);
@@ -94,10 +96,12 @@
         }
 
         message.innerHTML = `Hello, ${user.username}! ${user.badge} <br>${dailyMessage}`;
-        // Hide overlay after showing message
-        setTimeout(()=>{ overlay.style.display='none'; }, 2000); // 2 seconds
+        continueBtn.style.display = "inline-block"; // show continue button
     }
 
+    function closeOverlay(){
+        overlay.style.display = "none"; // just hide overlay, leave page visible
+    }
 </script>
 </body>
 </html>
