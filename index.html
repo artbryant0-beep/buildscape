@@ -3,39 +3,41 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Buildscape</title>
+<title>Buildscape MVP</title>
 <style>
   body { font-family: Arial, sans-serif; background: #f0f2f5; padding: 20px; }
-  h1, h2 { text-align: center; color: #333; }
+  h1,h2 { text-align: center; color: #333; }
   .container { max-width: 600px; margin: 20px auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-  input, textarea, button { width: 100%; padding: 10px; margin: 8px 0; border-radius: 8px; border: 1px solid #ccc; }
+  input,textarea,button { width: 100%; padding: 10px; margin: 8px 0; border-radius: 8px; border: 1px solid #ccc; }
   button { background: #4CAF50; color: #fff; border: none; cursor: pointer; }
   button:hover { background: #45a049; }
-  .idea { border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; align-items: center; }
+  .idea { border-bottom: 1px solid #eee; padding: 10px 0; }
   .votes { font-weight: bold; color: #333; }
   .level { color: #ff9800; font-weight: bold; }
+  .comment { margin-left: 10px; font-size: 0.9em; color: #555; }
+  .comment-input { width: 80%; display: inline-block; }
+  .comment-btn { width: 18%; display: inline-block; padding: 6px; margin-left: 2%; }
   .hidden { display: none; }
 </style>
 </head>
 <body>
 
-<h1>Buildscape</h1>
+<h1>Buildscape MVP</h1>
 
-<div class="container" id="authContainer">
+<div class="container" id="loginContainer">
   <h2>Sign Up / Login</h2>
-  <input type="text" id="authUsername" placeholder="Username">
-  <input type="password" id="authPassword" placeholder="Password">
-  <button onclick="signUp()">Sign Up</button>
-  <button onclick="login()">Login</button>
+  <input type="text" id="username" placeholder="Enter your name">
+  <button onclick="login()">Continue</button>
+  <p style="font-size:0.9em;color:#555;">Use a unique name. Referral code (optional) in URL like ?ref=YourFriend</p>
 </div>
 
-<div class="container hidden" id="ideaContainer">
+<div class="container hidden" id="submitContainer">
   <h2>Submit Your Idea</h2>
-  <textarea id="ideaText" rows="3" placeholder="Describe your idea..."></textarea>
+  <textarea id="ideaText" rows="3" placeholder="Your idea for ClawBot, AI, or Crypto..."></textarea>
   <button onclick="submitIdea()">Submit Idea</button>
 </div>
 
-<div class="container hidden" id="ideasListContainer">
+<div class="container hidden" id="ideasContainerBox">
   <h2>Ideas & Votes</h2>
   <div id="ideasContainer"></div>
 </div>
@@ -46,96 +48,118 @@
 </div>
 
 <script>
-// ---------- USERS ----------
+// -------------------- USERS & REFERRALS --------------------
 let users = JSON.parse(localStorage.getItem('users')) || [];
 let currentUser = localStorage.getItem('currentUser') || null;
 
-// ---------- IDEAS ----------
+// check referral code from URL
+const urlParams = new URLSearchParams(window.location.search);
+const referralCode = urlParams.get('ref');
+
+// -------------------- IDEAS --------------------
 let ideas = JSON.parse(localStorage.getItem('ideas')) || [];
 
-// ---------- AUTH ----------
-function signUp() {
-  const username = document.getElementById('authUsername').value.trim();
-  const password = document.getElementById('authPassword').value.trim();
-  if (!username || !password) { alert('Enter username and password'); return; }
-
-  if (users.find(u => u.username === username)) { alert('Username exists!'); return; }
-
-  users.push({ username, password: btoa(password), points: 0 });
-  localStorage.setItem('users', JSON.stringify(users));
-  alert('Signed up! You can now login.');
-}
-
+// -------------------- LOGIN --------------------
 function login() {
-  const username = document.getElementById('authUsername').value.trim();
-  const password = document.getElementById('authPassword').value.trim();
-  const user = users.find(u => u.username === username && u.password === btoa(password));
-  if (!user) { alert('Invalid username or password'); return; }
+  const name = document.getElementById('username').value.trim();
+  if(!name) { alert("Enter a name!"); return; }
 
-  currentUser = username;
+  // check if user exists
+  let user = users.find(u => u.name === name);
+  if(!user) {
+    user = { name: name, points: 0, referrals: 0 };
+    users.push(user);
+
+    // track referral if present
+    if(referralCode) {
+      const referrer = users.find(u => u.name === referralCode);
+      if(referrer) { referrer.points += 1; referrer.referrals += 1; }
+    }
+  }
+
+  currentUser = name;
   localStorage.setItem('currentUser', currentUser);
-  alert('Logged in as ' + currentUser);
-  document.getElementById('authContainer').classList.add('hidden');
-  document.getElementById('ideaContainer').classList.remove('hidden');
-  document.getElementById('ideasListContainer').classList.remove('hidden');
+  localStorage.setItem('users', JSON.stringify(users));
+
+  // show main interface
+  document.getElementById('loginContainer').classList.add('hidden');
+  document.getElementById('submitContainer').classList.remove('hidden');
+  document.getElementById('ideasContainerBox').classList.remove('hidden');
   document.getElementById('leaderboardContainer').classList.remove('hidden');
+
   renderIdeas();
   renderLeaderboard();
 }
 
-// ---------- IDEA SUBMISSION ----------
+// -------------------- IDEA SUBMISSION --------------------
 function saveIdeas() { localStorage.setItem('ideas', JSON.stringify(ideas)); }
 
 function submitIdea() {
-  if (!currentUser) { alert('Login first'); return; }
   const text = document.getElementById('ideaText').value.trim();
-  if (!text) { alert('Enter an idea'); return; }
+  if(!text) { alert("Enter an idea!"); return; }
 
-  ideas.push({ id: Date.now(), username: currentUser, text, votes: 0, votedBy: [] });
+  ideas.push({ id: Date.now(), username: currentUser, text: text, votes: 0, votedBy: [], comments: [] });
   saveIdeas();
   document.getElementById('ideaText').value = '';
   renderIdeas();
   renderLeaderboard();
 }
 
-// ---------- VOTING ----------
+// -------------------- VOTING --------------------
 function vote(id) {
-  if (!currentUser) { alert('Login first'); return; }
   const idea = ideas.find(i => i.id === id);
-  if (idea.votedBy.includes(currentUser)) { alert('You already voted on this idea!'); return; }
+  if(idea.votedBy.includes(currentUser)) { alert("You already voted on this idea!"); return; }
 
   idea.votes++;
   idea.votedBy.push(currentUser);
   saveIdeas();
 
-  // give points to idea owner
-  const owner = users.find(u => u.username === idea.username);
-  if (owner) { owner.points++; localStorage.setItem('users', JSON.stringify(users)); }
+  // add point to idea owner
+  const owner = users.find(u => u.name === idea.username);
+  if(owner) { owner.points++; localStorage.setItem('users', JSON.stringify(users)); }
 
   renderIdeas();
   renderLeaderboard();
 }
 
-// ---------- LEVEL CALC ----------
+// -------------------- COMMENTS --------------------
+function addComment(id) {
+  const commentInput = document.getElementById('comment-'+id);
+  const text = commentInput.value.trim();
+  if(!text) return;
+  const idea = ideas.find(i => i.id === id);
+  idea.comments.push({ username: currentUser, text });
+  saveIdeas();
+  renderIdeas();
+}
+
+// -------------------- LEVELS --------------------
 function calculateLevel(points) {
-  if (points >= 20) return 'Master';
-  if (points >= 10) return 'Pro';
-  if (points >= 5) return 'Intermediate';
+  if(points>=20) return 'Master';
+  if(points>=10) return 'Pro';
+  if(points>=5) return 'Intermediate';
   return 'Beginner';
 }
 
-// ---------- RENDER ----------
+// -------------------- RENDER --------------------
 function renderIdeas() {
   const container = document.getElementById('ideasContainer');
   container.innerHTML = '';
-  ideas.sort((a,b) => b.votes - a.votes);
-  ideas.forEach(i => {
+  ideas.sort((a,b)=>b.votes-a.votes);
+  ideas.forEach(i=>{
     const div = document.createElement('div');
     div.className = 'idea';
     div.innerHTML = `
-      <div><strong>${i.username}</strong> (<span class="level">${calculateLevel(users.find(u => u.username===i.username)?.points || 0)}</span>): ${i.text}</div>
-      <div><span class="votes">${i.votes} 👍</span>
-      <button onclick="vote(${i.id})">Vote</button></div>
+      <div><strong>${i.username}</strong> (<span class="level">${calculateLevel(users.find(u=>u.name===i.username)?.points||0)}</span>): ${i.text}</div>
+      <div>
+        <span class="votes">${i.votes} 👍</span>
+        <button onclick="vote(${i.id})">Vote</button>
+      </div>
+      <div>
+        ${i.comments.map(c=>`<div class="comment"><strong>${c.username}:</strong> ${c.text}</div>`).join('')}
+        <input type="text" id="comment-${i.id}" class="comment-input" placeholder="Add comment">
+        <button class="comment-btn" onclick="addComment(${i.id})">Comment</button>
+      </div>
     `;
     container.appendChild(div);
   });
@@ -144,23 +168,16 @@ function renderIdeas() {
 function renderLeaderboard() {
   const container = document.getElementById('leaderboard');
   container.innerHTML = '';
-  const sorted = [...users].sort((a,b) => b.points - a.points);
-  sorted.forEach(u => {
+  const sorted = [...users].sort((a,b)=>b.points-a.points);
+  sorted.forEach(u=>{
     const div = document.createElement('div');
-    div.innerHTML = `<strong>${u.username}</strong> - ${u.points} pts (<span class="level">${calculateLevel(u.points)}</span>)`;
+    div.innerHTML = `<strong>${u.name}</strong> - ${u.points} pts (+${u.referrals} referrals) <span class="level">(${calculateLevel(u.points)})</span>`;
     container.appendChild(div);
   });
 }
 
-// ---------- AUTO LOGIN ----------
-if (currentUser) {
-  document.getElementById('authContainer').classList.add('hidden');
-  document.getElementById('ideaContainer').classList.remove('hidden');
-  document.getElementById('ideasListContainer').classList.remove('hidden');
-  document.getElementById('leaderboardContainer').classList.remove('hidden');
-  renderIdeas();
-  renderLeaderboard();
-}
+// -------------------- AUTO LOGIN --------------------
+if(currentUser) login();
 </script>
 
 </body>
