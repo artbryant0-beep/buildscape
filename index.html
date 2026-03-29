@@ -1,36 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buildscape MVP</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #f0f2f5; padding: 20px; }
+  h1,h2 { text-align: center; color: #333; }
+  .container { max-width: 600px; margin: 20px auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+  input,textarea,button,select { width: 100%; padding: 10px; margin: 8px 0; border-radius: 8px; border: 1px solid #ccc; }
+  button { background: #4CAF50; color: #fff; border: none; cursor: pointer; }
+  button:hover { background: #45a049; }
+  .idea { border-bottom: 1px solid #eee; padding: 10px 0; }
+  .votes { font-weight: bold; color: #333; }
+  .level { color: #ff9800; font-weight: bold; }
+  .comment { margin-left: 10px; font-size: 0.9em; color: #555; }
+  .comment-input { width: 80%; display: inline-block; }
+  .comment-btn { width: 18%; display: inline-block; padding: 6px; margin-left: 2%; }
+  .hidden { display: none; }
+  #chatMessages { height:200px; overflow-y:auto; border:1px solid #ccc; padding:10px; border-radius:8px; background:#fafafa; }
+</style>
+</head>
+<body>
+
+<h1>Buildscape MVP</h1>
+
+<!-- LOGIN / SIGNUP -->
+<div class="container" id="loginContainer">
+  <h2>Sign Up / Login</h2>
+  <input type="text" id="username" placeholder="Enter your name">
+  <button onclick="login()">Continue</button>
+  <p style="font-size:0.9em;color:#555;">Use a unique name. Referral code (optional) in URL like ?ref=YourFriend</p>
+</div>
+
+<!-- IDEA SUBMISSION -->
+<div class="container hidden" id="submitContainer">
+  <h2>Submit Your Idea</h2>
+  <select id="category">
+    <option value="">Select Category (ClawBot / AI / Crypto)</option>
+    <option value="ClawBot">ClawBot</option>
+    <option value="AI">AI</option>
+    <option value="Crypto">Crypto</option>
+  </select>
+  <textarea id="ideaText" rows="3" placeholder="Your idea..."></textarea>
+  <button onclick="submitIdea()">Submit Idea</button>
+</div>
+
+<!-- IDEAS AND VOTES -->
+<div class="container hidden" id="ideasContainerBox">
+  <h2>Ideas & Votes</h2>
+  <div id="ideasContainer"></div>
+</div>
+
+<!-- LEADERBOARD -->
+<div class="container hidden" id="leaderboardContainer">
+  <h2>Leaderboard</h2>
+  <div id="leaderboard"></div>
+</div>
+
+<!-- GLOBAL CHAT -->
 <div class="container hidden" id="chatContainer">
   <h2>Community Chat</h2>
-  <div id="chatMessages" style="height:200px; overflow-y:auto; border:1px solid #ccc; padding:10px; border-radius:8px; background:#fafafa;"></div>
-  <input type="text" id="chatInput" placeholder="Write a message..." style="width:80%; padding:8px; margin-top:5px;">
-  <button style="width:18%; padding:8px; margin-left:2%;" onclick="sendChat()">Send</button>
+  <div id="chatMessages"></div>
+  <input type="text" id="chatInput" placeholder="Write a message...">
+  <button id="chatSendBtn">Send</button>
 </div>
 
 <script>
+// -------------------- STORAGE --------------------
+let users = JSON.parse(localStorage.getItem('users')) || [];
+let currentUser = localStorage.getItem('currentUser') || null;
+let ideas = JSON.parse(localStorage.getItem('ideas')) || [];
 let chat = JSON.parse(localStorage.getItem('chat')) || [];
 
-// Only show chat after login
-function showChat() {
+// check referral code
+const urlParams = new URLSearchParams(window.location.search);
+const referralCode = urlParams.get('ref');
+
+// -------------------- LOGIN --------------------
+function login() {
+  const name = document.getElementById('username').value.trim();
+  if(!name) { alert("Enter a name!"); return; }
+
+  let user = users.find(u => u.name === name);
+  if(!user) {
+    user = { name: name, points: 0, referrals: 0 };
+    users.push(user);
+    // track referral
+    if(referralCode) {
+      const referrer = users.find(u=>u.name===referralCode);
+      if(referrer) { referrer.points++; referrer.referrals++; }
+    }
+  }
+
+  currentUser = name;
+  localStorage.setItem('currentUser', currentUser);
+  localStorage.setItem('users', JSON.stringify(users));
+
+  // show main interface
+  document.getElementById('loginContainer').classList.add('hidden');
+  document.getElementById('submitContainer').classList.remove('hidden');
+  document.getElementById('ideasContainerBox').classList.remove('hidden');
+  document.getElementById('leaderboardContainer').classList.remove('hidden');
   document.getElementById('chatContainer').classList.remove('hidden');
+
+  renderIdeas();
+  renderLeaderboard();
   renderChat();
 }
 
+// -------------------- IDEA SUBMISSION --------------------
+function saveIdeas() { localStorage.setItem('ideas', JSON.stringify(ideas)); }
+
+function submitIdea() {
+  const text = document.getElementById('ideaText').value.trim();
+  const category = document.getElementById('category').value;
+  if(!text || !category) { alert("Enter idea and select category!"); return; }
+
+  ideas.push({ id: Date.now(), username: currentUser, category, text, votes:0, votedBy:[], comments:[] });
+  saveIdeas();
+  document.getElementById('ideaText').value = '';
+  document.getElementById('category').value = '';
+  renderIdeas();
+  renderLeaderboard();
+}
+
+// -------------------- VOTING --------------------
+function vote(id) {
+  const idea = ideas.find(i=>i.id===id);
+  if(idea.votedBy.includes(currentUser)) { alert("You already voted!"); return; }
+  idea.votes++;
+  idea.votedBy.push(currentUser);
+  saveIdeas();
+
+  const owner = users.find(u=>u.name===idea.username);
+  if(owner) { owner.points++; localStorage.setItem('users', JSON.stringify(users)); }
+
+  renderIdeas();
+  renderLeaderboard();
+}
+
+// -------------------- COMMENTS --------------------
+function addComment(id) {
+  const input = document.getElementById('comment-'+id);
+  const text = input.value.trim();
+  if(!text) return;
+  const idea = ideas.find(i=>i.id===id);
+  idea.comments.push({ username: currentUser, text });
+  saveIdeas();
+  input.value = '';
+  renderIdeas();
+}
+
+// -------------------- LEVELS --------------------
+function calculateLevel(points) {
+  if(points>=20) return 'Master';
+  if(points>=10) return 'Pro';
+  if(points>=5) return 'Intermediate';
+  return 'Beginner';
+}
+
+// -------------------- RENDER IDEAS --------------------
+function renderIdeas() {
+  const container = document.getElementById('ideasContainer');
+  container.innerHTML = '';
+  ideas.sort((a,b)=>b.votes-a.votes);
+  ideas.forEach(i=>{
+    const div = document.createElement('div');
+    div.className = 'idea';
+    div.innerHTML = `
+      <div><strong>${i.username}</strong> (<span class="level">${calculateLevel(users.find(u=>u.name===i.username)?.points||0)}</span>) [${i.category}]: ${i.text}</div>
+      <div>
+        <span class="votes">${i.votes} 👍</span>
+        <button onclick="vote(${i.id})">Vote</button>
+      </div>
+      <div>
+        ${i.comments.map(c=>`<div class="comment"><strong>${c.username}:</strong> ${c.text}</div>`).join('')}
+        <input type="text" id="comment-${i.id}" class="comment-input" placeholder="Add comment">
+        <button class="comment-btn" onclick="addComment(${i.id})">Comment</button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+// -------------------- LEADERBOARD --------------------
+function renderLeaderboard() {
+  const container = document.getElementById('leaderboard');
+  container.innerHTML = '';
+  const sorted = [...users].sort((a,b)=>b.points-a.points);
+  sorted.forEach(u=>{
+    const div = document.createElement('div');
+    div.innerHTML = `<strong>${u.name}</strong> - ${u.points} pts (+${u.referrals} referrals) <span class="level">(${calculateLevel(u.points)})</span>`;
+    container.appendChild(div);
+  });
+}
+
+// -------------------- CHAT --------------------
 function renderChat() {
   const container = document.getElementById('chatMessages');
   container.innerHTML = chat.map(c=>`<div><strong>${c.username}:</strong> ${c.text}</div>`).join('');
-  container.scrollTop = container.scrollHeight; // auto scroll
+  container.scrollTop = container.scrollHeight;
 }
 
 function sendChat() {
-  const text = document.getElementById('chatInput').value.trim();
-  if(!text) { return alert("Type a message!"); }
-  if(!currentUser) { return alert("You must login first!"); }
-
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if(!text) return alert("Type a message!");
+  if(!currentUser) return alert("Login first!");
   chat.push({ username: currentUser, text });
   localStorage.setItem('chat', JSON.stringify(chat));
-  document.getElementById('chatInput').value = '';
+  input.value = '';
   renderChat();
 }
 
-// Call this after login
-// showChat();  <-- call this in your login() function after currentUser is set
+document.getElementById('chatSendBtn').addEventListener('click', sendChat);
+
+// -------------------- AUTO LOGIN --------------------
+if(currentUser) login();
+
 </script>
+</body>
+</html>
