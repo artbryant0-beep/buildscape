@@ -1,36 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Buildscape</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-        input { padding: 8px; font-size: 16px; }
-        button { padding: 8px 12px; font-size: 16px; margin: 5px; cursor: pointer; }
-    </style>
+<meta charset="UTF-8">
+<title>Buildscape</title>
+<style>
+    body { font-family: sans-serif; }
+    /* Popup overlay */
+    #loginOverlay {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+    #loginBox {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        text-align: center;
+        max-width: 300px;
+        width: 80%;
+    }
+    #loginBox input { width: 80%; padding: 8px; margin: 10px 0; }
+    #loginBox button { padding: 8px 12px; margin: 5px; cursor: pointer; }
+    #dashboardMessage { margin-top: 10px; font-weight: bold; }
+</style>
 </head>
 <body>
-<script>
-    // --- Check if user is logged in ---
-    let user = JSON.parse(localStorage.getItem('user'));
 
-    if(user) {
+<!-- Your existing Buildscape content stays here -->
+<h1>Level Up!</h1>
+<p>Welcome to Buildscape. 🎮</p>
+
+<!-- Login/Signup overlay -->
+<div id="loginOverlay">
+    <div id="loginBox">
+        <h2>Sign Up / Login</h2>
+        <input id="username" placeholder="Enter username" />
+        <br>
+        <button onclick="signup()">Sign Up</button>
+        <button onclick="login()">Login</button>
+        <div id="dashboardMessage"></div>
+    </div>
+</div>
+
+<script>
+    // Check if user exists in localStorage
+    let user = JSON.parse(localStorage.getItem('user'));
+    const overlay = document.getElementById('loginOverlay');
+    const message = document.getElementById('dashboardMessage');
+
+    if(user){
         showDashboard(user);
-    } else {
-        showLoginForm();
     }
 
-    // --- Signup function ---
-    function signup(username) {
-        if(!username) { alert("Enter a username"); return; }
+    function signup(){
+        const username = document.getElementById('username').value.trim();
+        if(!username){ alert("Enter a username"); return; }
         const badge = "🌟";
         const newUser = { username, badge, lastLogin: null };
         localStorage.setItem('user', JSON.stringify(newUser));
         showDashboard(newUser);
     }
 
-    // --- Login function ---
-    function login(username) {
+    function login(){
+        const username = document.getElementById('username').value.trim();
         const storedUser = JSON.parse(localStorage.getItem('user'));
         if(storedUser && storedUser.username === username){
             showDashboard(storedUser);
@@ -39,10 +75,9 @@
         }
     }
 
-    // --- Dashboard display ---
     function showDashboard(user){
         const today = new Date().toDateString();
-        let message;
+        let dailyMessage;
 
         if(user.lastLogin !== today){
             const horoscopes = [
@@ -51,46 +86,18 @@
                 "Today is perfect for creativity.",
                 "Your energy will attract good things!"
             ];
-            message = horoscopes[Math.floor(Math.random() * horoscopes.length)];
+            dailyMessage = horoscopes[Math.floor(Math.random() * horoscopes.length)];
             user.lastLogin = today;
             localStorage.setItem('user', JSON.stringify(user));
         } else {
-            message = "Positive affirmation: You are amazing today!";
+            dailyMessage = "Positive affirmation: You are amazing today!";
         }
 
-        document.body.innerHTML = `
-            <h2>Welcome, ${user.username}! ${user.badge}</h2>
-            <p>${message}</p>
-            <button onclick="proceed()">Go to Level Up</button>
-            <br><br>
-            <button onclick="logout()">Logout</button>
-        `;
+        message.innerHTML = `Hello, ${user.username}! ${user.badge} <br>${dailyMessage}`;
+        // Hide overlay after showing message
+        setTimeout(()=>{ overlay.style.display='none'; }, 2000); // 2 seconds
     }
 
-    function logout(){
-        localStorage.removeItem('user');
-        location.reload();
-    }
-
-    // --- Show signup/login form ---
-    function showLoginForm(){
-        document.body.innerHTML = `
-            <h2>Sign Up / Login</h2>
-            <input id="username" placeholder="Enter username" />
-            <br>
-            <button onclick="signup(document.getElementById('username').value)">Sign Up</button>
-            <button onclick="login(document.getElementById('username').value)">Login</button>
-        `;
-    }
-
-    // --- Proceed to your Level Up page ---
-    function proceed(){
-        document.body.innerHTML = `
-            <h1>Level Up!</h1>
-            <p>This is your Buildscape page. 🎮</p>
-            <button onclick="location.reload()">Back to Dashboard</button>
-        `;
-    }
 </script>
 </body>
 </html>
