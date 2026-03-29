@@ -5,7 +5,6 @@
 <title>Buildscape</title>
 <style>
     body { font-family: sans-serif; }
-    /* Popup overlay */
     #loginOverlay {
         position: fixed;
         top: 0; left: 0; width: 100%; height: 100%;
@@ -30,10 +29,9 @@
 </head>
 <body>
 
-<!-- Your existing Buildscape content stays here -->
+<!-- Existing Level Up page -->
 <h1>Level Up!</h1>
 <p>Welcome to Buildscape. 🎮</p>
-<!-- Add more existing Level Up HTML here as needed -->
 
 <!-- Login/Signup overlay -->
 <div id="loginOverlay">
@@ -49,13 +47,18 @@
 </div>
 
 <script>
-    let user = JSON.parse(localStorage.getItem('user'));
     const overlay = document.getElementById('loginOverlay');
     const message = document.getElementById('dashboardMessage');
     const continueBtn = document.getElementById('continueBtn');
 
-    if(user){
+    // Load user from localStorage
+    let user = JSON.parse(localStorage.getItem('user'));
+
+    // Only show dashboard if valid user exists
+    if(user && user.username){
         showDashboard(user);
+    } else {
+        overlay.style.display = "flex"; // make sure overlay is visible
     }
 
     function signup(){
@@ -96,11 +99,11 @@
         }
 
         message.innerHTML = `Hello, ${user.username}! ${user.badge} <br>${dailyMessage}`;
-        continueBtn.style.display = "inline-block"; // show continue button
+        continueBtn.style.display = "inline-block"; // user clicks to continue
     }
 
     function closeOverlay(){
-        overlay.style.display = "none"; // just hide overlay, leave page visible
+        overlay.style.display = "none"; // just hide overlay
     }
 </script>
 </body>
