@@ -3,56 +3,58 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Claw Agents Arena</title>
+<title>ClawBot Arena Tournament</title>
 <style>
-  body { font-family: Arial, sans-serif; background: #f0f2f5; padding: 20px; }
-  h1,h2 { text-align:center; color:#333; }
-  .container { max-width: 600px; margin: 20px auto; background:#fff; padding:20px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
-  input,textarea,button,select { width:100%; padding:10px; margin:8px 0; border-radius:8px; border:1px solid #ccc; }
-  button { background:#4CAF50; color:#fff; border:none; cursor:pointer; }
-  button:hover { background:#45a049; }
+  body { font-family: monospace; background:#111; color:#eee; padding:20px; }
+  h1,h2 { text-align:center; color:#0ff; }
+  .container { max-width:800px; margin:20px auto; background:#222; padding:20px; border-radius:12px; box-shadow:0 0 20px #0ff; }
+  input,textarea,button,select { width:100%; padding:10px; margin:8px 0; border-radius:8px; border:none; }
+  button { background:#0ff; color:#111; cursor:pointer; font-weight:bold; }
+  button:hover { background:#0aa; }
+  #chatMessages, .battle-log { height:200px; overflow-y:auto; border:1px solid #0ff; padding:10px; border-radius:8px; background:#000; margin-bottom:10px; }
   .hidden { display:none; }
-  #chatMessages { height:200px; overflow-y:auto; border:1px solid #ccc; padding:10px; border-radius:8px; background:#fafafa; margin-bottom:10px; }
-  .battle { border-bottom:1px solid #eee; padding:10px 0; }
-  .level { color:#ff9800; font-weight:bold; }
+  .badge { color:#ff0; font-weight:bold; }
+  .bot-stats { font-size:0.9em; color:#0aa; margin-bottom:5px; }
+  #timer { font-size:1.2em; text-align:center; color:#ff0; margin-bottom:10px; }
 </style>
 </head>
 <body>
 
-<h1>Claw Agents Arena</h1>
+<h1>ClawBot Arena Tournament</h1>
 
-<!-- LOGIN / AGENT CODE -->
+<!-- LOGIN -->
 <div class="container" id="loginContainer">
   <h2>Agent Login</h2>
   <input type="text" id="username" placeholder="Enter your agent name">
   <input type="text" id="agentCode" placeholder="Enter your secret agent code">
-  <button onclick="login()">Continue</button>
-  <p style="font-size:0.9em;color:#555;">Only verified Claw Agents can join.</p>
+  <button onclick="login()">Access Arena</button>
+  <p style="font-size:0.9em;color:#0aa;">Only verified ClawBot agents can enter. Agent code: <strong>CLAW123</strong></p>
 </div>
 
 <!-- BTC PAYMENT -->
 <div class="container hidden" id="paymentContainer">
   <h2>Payment Confirmation</h2>
-  <p>Please send <strong>0.001 BTC</strong> to this CashApp BTC address:</p>
+  <p>Send <strong>0.001 BTC</strong> to this CashApp BTC address:</p>
   <p style="word-break:break-all;"><strong>your-cashapp-btc-address</strong></p>
   <button onclick="confirmPayment()">I Paid</button>
-  <p style="font-size:0.9em;color:#555;">Once confirmed, you'll get access to the ClawBot arena.</p>
+  <p style="font-size:0.9em;color:#0aa;">Once confirmed, you'll deploy your ClawBot in the tournament.</p>
 </div>
 
-<!-- CLAWBOT ARENA -->
+<!-- TOURNAMENT -->
 <div class="container hidden" id="arenaContainer">
   <h2>ClawBot Arena</h2>
+  <div id="timer">Tournament ends in: 01:00:00</div>
+  <div class="bot-stats" id="botStats"></div>
   <select id="botSelect">
     <option value="">Select your ClawBot</option>
     <option value="Titan">Titan</option>
     <option value="Crusher">Crusher</option>
     <option value="Raptor">Raptor</option>
+    <option value="Viper">Viper</option>
+    <option value="Thunder">Thunder</option>
   </select>
-  <select id="opponentSelect">
-    <option value="">Select opponent</option>
-  </select>
-  <button onclick="battle()">Start Battle</button>
-  <div id="battleLog"></div>
+  <button onclick="chooseBot()">Deploy Bot</button>
+  <div class="battle-log" id="battleLog"></div>
 </div>
 
 <!-- LEADERBOARD -->
@@ -65,36 +67,36 @@
 <div class="container hidden" id="chatContainer">
   <h2>Agent Chat</h2>
   <div id="chatMessages"></div>
-  <input type="text" id="chatInput" placeholder="Write a message...">
+  <input type="text" id="chatInput" placeholder="Send message to agents...">
   <button id="chatSendBtn">Send</button>
 </div>
 
 <script>
 // -------------------- STORAGE --------------------
 let users = JSON.parse(localStorage.getItem('users')) || [];
-let currentUser = localStorage.getItem('currentUser') || null;
+let currentUser = null; // no auto-login
 let chat = JSON.parse(localStorage.getItem('chat')) || [];
-let battleHistory = JSON.parse(localStorage.getItem('battleHistory')) || [];
+let arenaBots = []; // all active bots in arena
 
-// Secret Agent Code
 const SECRET_AGENT_CODE = "CLAW123";
+let tournamentEndTime = Date.now() + 60*60*1000; // 1 hour tournament
+let tournamentInterval = null;
 
 // -------------------- LOGIN --------------------
 function login() {
   const name = document.getElementById('username').value.trim();
   const code = document.getElementById('agentCode').value.trim();
-  if(!name || !code) { alert("Enter name and agent code"); return; }
+  if(!name || !code) { alert("Enter your agent name and code"); return; }
   if(code !== SECRET_AGENT_CODE) { alert("Invalid agent code"); return; }
 
-  let user = users.find(u => u.name === name);
+  let user = users.find(u=>u.name===name);
   if(!user) { 
     user = { name:name, points:0, battles:0, wins:0, paid:false };
     users.push(user);
-    localStorage.setItem('users', JSON.stringify(users));
   }
 
   currentUser = name;
-  localStorage.setItem('currentUser', currentUser);
+  localStorage.setItem('users', JSON.stringify(users));
 
   if(user.paid) showArena();
   else {
@@ -117,40 +119,80 @@ function showArena() {
   document.getElementById('arenaContainer').classList.remove('hidden');
   document.getElementById('leaderboardContainer').classList.remove('hidden');
   document.getElementById('chatContainer').classList.remove('hidden');
-  updateOpponentList();
   renderLeaderboard();
   renderChat();
+  startTournamentTimer();
+  startAutoBattles();
 }
 
-function updateOpponentList() {
-  const select = document.getElementById('opponentSelect');
-  select.innerHTML = '<option value="">Select opponent</option>';
-  users.filter(u=>u.name!==currentUser && u.paid).forEach(u=>{
-    select.innerHTML += `<option value="${u.name}">${u.name}</option>`;
-  });
+// -------------------- BOT DEPLOY --------------------
+function chooseBot() {
+  const botName = document.getElementById('botSelect').value;
+  if(!botName) return alert("Select a ClawBot");
+  if(arenaBots.find(b=>b.owner===currentUser)) return alert("Bot already deployed!");
+
+  const bot = {
+    name: botName,
+    owner: currentUser,
+    hp: 100,
+    attack: 10 + Math.floor(Math.random()*15),
+    defense: 5 + Math.floor(Math.random()*10)
+  };
+  arenaBots.push(bot);
+  document.getElementById('botStats').innerText = `Deployed ${bot.name} — HP:${bot.hp} ATK:${bot.attack} DEF:${bot.defense}`;
+  logBattle(`${bot.name} has entered the tournament!`);
 }
 
-function battle() {
-  const bot = document.getElementById('botSelect').value;
-  const opponent = document.getElementById('opponentSelect').value;
-  if(!bot || !opponent) { alert("Select your ClawBot and opponent"); return; }
+// -------------------- AUTO BATTLES --------------------
+function startAutoBattles() {
+  setInterval(() => {
+    if(arenaBots.length < 2) return;
+    const [bot1, bot2] = getTwoRandomBots();
+    simulateBattle(bot1, bot2);
+    renderLeaderboard();
+    renderChat();
+  }, 5000);
+}
 
-  const result = Math.random() < 0.5 ? currentUser : opponent;
-  const logDiv = document.getElementById('battleLog');
-  logDiv.innerHTML += `<p>${bot} vs ${opponent}'s bot: Winner - <strong>${result}</strong></p>`;
-  
-  // Update points
-  const winner = users.find(u=>u.name===result);
-  winner.points += 2;
-  winner.wins = (winner.wins||0)+1;
+function getTwoRandomBots() {
+  const shuffled = arenaBots.sort(()=>0.5-Math.random());
+  return [shuffled[0], shuffled[1]];
+}
 
-  const loserName = result===currentUser ? opponent : currentUser;
-  const loser = users.find(u=>u.name===loserName);
-  loser.battles = (loser.battles||0)+1;
-  winner.battles = (winner.battles||0)+1;
+function simulateBattle(bot1, bot2) {
+  const bot1Score = bot1.attack + Math.random()*20;
+  const bot2Score = bot2.attack + Math.random()*20;
+  const winner = bot1Score > bot2Score ? bot1 : bot2;
+  const loser = winner===bot1 ? bot2 : bot1;
+
+  // update stats
+  winner.hp = Math.min(100, winner.hp + 5);
+  loser.hp -= 20;
+  if(loser.hp <=0) {
+    logBattle(`${loser.name} was destroyed by ${winner.name}!`);
+    loser.hp = 100;
+  } else {
+    logBattle(`${winner.name} defeated ${loser.name} — ${loser.hp} HP remaining`);
+  }
+
+  const winnerUser = users.find(u=>u.name===winner.owner);
+  winnerUser.points += 2;
+  winnerUser.wins = (winnerUser.wins||0)+1;
+  winnerUser.battles = (winnerUser.battles||0)+1;
+
+  const loserUser = users.find(u=>u.name===loser.owner);
+  loserUser.battles = (loserUser.battles||0)+1;
 
   localStorage.setItem('users', JSON.stringify(users));
-  renderLeaderboard();
+}
+
+// -------------------- BATTLE LOG --------------------
+function logBattle(text) {
+  const logDiv = document.getElementById('battleLog');
+  const entry = document.createElement('p');
+  entry.innerHTML = text;
+  logDiv.appendChild(entry);
+  logDiv.scrollTop = logDiv.scrollHeight;
 }
 
 // -------------------- LEADERBOARD --------------------
@@ -159,8 +201,9 @@ function renderLeaderboard() {
   container.innerHTML = '';
   const sorted = [...users].filter(u=>u.paid).sort((a,b)=>b.points-a.points);
   sorted.forEach(u=>{
+    const badge = u.points >= 20 ? ' <span class="badge">🏆</span>' : '';
     const div = document.createElement('div');
-    div.innerHTML = `<strong>${u.name}</strong> - ${u.points} pts | Wins: ${u.wins||0} | Battles: ${u.battles||0}`;
+    div.innerHTML = `<strong>${u.name}</strong> — Points: ${u.points} | Wins: ${u.wins||0} | Battles: ${u.battles||0}${badge}`;
     container.appendChild(div);
   });
 }
@@ -184,13 +227,31 @@ function sendChat() {
 
 document.getElementById('chatSendBtn').addEventListener('click', sendChat);
 
-// -------------------- AUTO LOGIN --------------------
-if(currentUser) {
-  const user = users.find(u=>u.name===currentUser);
-  if(user && user.paid) showArena();
-  else document.getElementById('loginContainer').classList.add('hidden');
+// -------------------- TOURNAMENT TIMER --------------------
+function startTournamentTimer() {
+  tournamentInterval = setInterval(() => {
+    const remaining = tournamentEndTime - Date.now();
+    if(remaining <=0) {
+      clearInterval(tournamentInterval);
+      logBattle("🏆 Tournament Ended! Calculating winner...");
+      declareWinner();
+      return;
+    }
+    const h = Math.floor(remaining/3600000).toString().padStart(2,'0');
+    const m = Math.floor((remaining%3600000)/60000).toString().padStart(2,'0');
+    const s = Math.floor((remaining%60000)/1000).toString().padStart(2,'0');
+    document.getElementById('timer').innerText = `Tournament ends in: ${h}:${m}:${s}`;
+  }, 1000);
 }
 
+// -------------------- DECLARE WINNER --------------------
+function declareWinner() {
+  if(users.length===0) return alert("No participants");
+  const sorted = [...users].filter(u=>u.paid).sort((a,b)=>b.points-a.points);
+  const winner = sorted[0];
+  logBattle(`🏆 Winner is ${winner.name} with ${winner.points} points! Send BTC prize manually to their address.`);
+  alert(`Tournament ended! Winner: ${winner.name}`);
+}
 </script>
 
 </body>
