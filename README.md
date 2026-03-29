@@ -1,2 +1,2 @@
-# buildscape
-Buildscape is a progression-based platform where users level up over time, unlock features, and connect through shared growth, daily insights, and a dynamic badge system.
+clawbot-arena
+Competitive ClawBot PvP arena with BTC tournaments, live auto-battles, and exclusive agent access.
