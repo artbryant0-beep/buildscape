@@ -3,53 +3,56 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Buildscape MVP</title>
+<title>Claw Agents Arena</title>
 <style>
   body { font-family: Arial, sans-serif; background: #f0f2f5; padding: 20px; }
-  h1,h2 { text-align: center; color: #333; }
-  .container { max-width: 600px; margin: 20px auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-  input,textarea,button,select { width: 100%; padding: 10px; margin: 8px 0; border-radius: 8px; border: 1px solid #ccc; }
-  button { background: #4CAF50; color: #fff; border: none; cursor: pointer; }
-  button:hover { background: #45a049; }
-  .idea { border-bottom: 1px solid #eee; padding: 10px 0; }
-  .votes { font-weight: bold; color: #333; }
-  .level { color: #ff9800; font-weight: bold; }
-  .comment { margin-left: 10px; font-size: 0.9em; color: #555; }
-  .comment-input { width: 80%; display: inline-block; }
-  .comment-btn { width: 18%; display: inline-block; padding: 6px; margin-left: 2%; }
-  .hidden { display: none; }
-  #chatMessages { height:200px; overflow-y:auto; border:1px solid #ccc; padding:10px; border-radius:8px; background:#fafafa; }
+  h1,h2 { text-align:center; color:#333; }
+  .container { max-width: 600px; margin: 20px auto; background:#fff; padding:20px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
+  input,textarea,button,select { width:100%; padding:10px; margin:8px 0; border-radius:8px; border:1px solid #ccc; }
+  button { background:#4CAF50; color:#fff; border:none; cursor:pointer; }
+  button:hover { background:#45a049; }
+  .hidden { display:none; }
+  #chatMessages { height:200px; overflow-y:auto; border:1px solid #ccc; padding:10px; border-radius:8px; background:#fafafa; margin-bottom:10px; }
+  .battle { border-bottom:1px solid #eee; padding:10px 0; }
+  .level { color:#ff9800; font-weight:bold; }
 </style>
 </head>
 <body>
 
-<h1>Buildscape MVP</h1>
+<h1>Claw Agents Arena</h1>
 
-<!-- LOGIN / SIGNUP -->
+<!-- LOGIN / AGENT CODE -->
 <div class="container" id="loginContainer">
-  <h2>Sign Up / Login</h2>
-  <input type="text" id="username" placeholder="Enter your name">
+  <h2>Agent Login</h2>
+  <input type="text" id="username" placeholder="Enter your agent name">
+  <input type="text" id="agentCode" placeholder="Enter your secret agent code">
   <button onclick="login()">Continue</button>
-  <p style="font-size:0.9em;color:#555;">Use a unique name. Referral code (optional) in URL like ?ref=YourFriend</p>
+  <p style="font-size:0.9em;color:#555;">Only verified Claw Agents can join.</p>
 </div>
 
-<!-- IDEA SUBMISSION -->
-<div class="container hidden" id="submitContainer">
-  <h2>Submit Your Idea</h2>
-  <select id="category">
-    <option value="">Select Category (ClawBot / AI / Crypto)</option>
-    <option value="ClawBot">ClawBot</option>
-    <option value="AI">AI</option>
-    <option value="Crypto">Crypto</option>
+<!-- BTC PAYMENT -->
+<div class="container hidden" id="paymentContainer">
+  <h2>Payment Confirmation</h2>
+  <p>Please send <strong>0.001 BTC</strong> to this CashApp BTC address:</p>
+  <p style="word-break:break-all;"><strong>your-cashapp-btc-address</strong></p>
+  <button onclick="confirmPayment()">I Paid</button>
+  <p style="font-size:0.9em;color:#555;">Once confirmed, you'll get access to the ClawBot arena.</p>
+</div>
+
+<!-- CLAWBOT ARENA -->
+<div class="container hidden" id="arenaContainer">
+  <h2>ClawBot Arena</h2>
+  <select id="botSelect">
+    <option value="">Select your ClawBot</option>
+    <option value="Titan">Titan</option>
+    <option value="Crusher">Crusher</option>
+    <option value="Raptor">Raptor</option>
   </select>
-  <textarea id="ideaText" rows="3" placeholder="Your idea..."></textarea>
-  <button onclick="submitIdea()">Submit Idea</button>
-</div>
-
-<!-- IDEAS AND VOTES -->
-<div class="container hidden" id="ideasContainerBox">
-  <h2>Ideas & Votes</h2>
-  <div id="ideasContainer"></div>
+  <select id="opponentSelect">
+    <option value="">Select opponent</option>
+  </select>
+  <button onclick="battle()">Start Battle</button>
+  <div id="battleLog"></div>
 </div>
 
 <!-- LEADERBOARD -->
@@ -58,9 +61,9 @@
   <div id="leaderboard"></div>
 </div>
 
-<!-- GLOBAL CHAT -->
+<!-- AGENT CHAT -->
 <div class="container hidden" id="chatContainer">
-  <h2>Community Chat</h2>
+  <h2>Agent Chat</h2>
   <div id="chatMessages"></div>
   <input type="text" id="chatInput" placeholder="Write a message...">
   <button id="chatSendBtn">Send</button>
@@ -70,128 +73,94 @@
 // -------------------- STORAGE --------------------
 let users = JSON.parse(localStorage.getItem('users')) || [];
 let currentUser = localStorage.getItem('currentUser') || null;
-let ideas = JSON.parse(localStorage.getItem('ideas')) || [];
 let chat = JSON.parse(localStorage.getItem('chat')) || [];
+let battleHistory = JSON.parse(localStorage.getItem('battleHistory')) || [];
 
-// check referral code
-const urlParams = new URLSearchParams(window.location.search);
-const referralCode = urlParams.get('ref');
+// Secret Agent Code
+const SECRET_AGENT_CODE = "CLAW123";
 
 // -------------------- LOGIN --------------------
 function login() {
   const name = document.getElementById('username').value.trim();
-  if(!name) { alert("Enter a name!"); return; }
+  const code = document.getElementById('agentCode').value.trim();
+  if(!name || !code) { alert("Enter name and agent code"); return; }
+  if(code !== SECRET_AGENT_CODE) { alert("Invalid agent code"); return; }
 
   let user = users.find(u => u.name === name);
-  if(!user) {
-    user = { name: name, points: 0, referrals: 0 };
+  if(!user) { 
+    user = { name:name, points:0, battles:0, wins:0, paid:false };
     users.push(user);
-    // track referral
-    if(referralCode) {
-      const referrer = users.find(u=>u.name===referralCode);
-      if(referrer) { referrer.points++; referrer.referrals++; }
-    }
+    localStorage.setItem('users', JSON.stringify(users));
   }
 
   currentUser = name;
   localStorage.setItem('currentUser', currentUser);
-  localStorage.setItem('users', JSON.stringify(users));
 
-  // show main interface
-  document.getElementById('loginContainer').classList.add('hidden');
-  document.getElementById('submitContainer').classList.remove('hidden');
-  document.getElementById('ideasContainerBox').classList.remove('hidden');
+  if(user.paid) showArena();
+  else {
+    document.getElementById('loginContainer').classList.add('hidden');
+    document.getElementById('paymentContainer').classList.remove('hidden');
+  }
+}
+
+// -------------------- PAYMENT --------------------
+function confirmPayment() {
+  const user = users.find(u=>u.name===currentUser);
+  user.paid = true;
+  localStorage.setItem('users', JSON.stringify(users));
+  document.getElementById('paymentContainer').classList.add('hidden');
+  showArena();
+}
+
+// -------------------- ARENA --------------------
+function showArena() {
+  document.getElementById('arenaContainer').classList.remove('hidden');
   document.getElementById('leaderboardContainer').classList.remove('hidden');
   document.getElementById('chatContainer').classList.remove('hidden');
-
-  renderIdeas();
+  updateOpponentList();
   renderLeaderboard();
   renderChat();
 }
 
-// -------------------- IDEA SUBMISSION --------------------
-function saveIdeas() { localStorage.setItem('ideas', JSON.stringify(ideas)); }
-
-function submitIdea() {
-  const text = document.getElementById('ideaText').value.trim();
-  const category = document.getElementById('category').value;
-  if(!text || !category) { alert("Enter idea and select category!"); return; }
-
-  ideas.push({ id: Date.now(), username: currentUser, category, text, votes:0, votedBy:[], comments:[] });
-  saveIdeas();
-  document.getElementById('ideaText').value = '';
-  document.getElementById('category').value = '';
-  renderIdeas();
-  renderLeaderboard();
-}
-
-// -------------------- VOTING --------------------
-function vote(id) {
-  const idea = ideas.find(i=>i.id===id);
-  if(idea.votedBy.includes(currentUser)) { alert("You already voted!"); return; }
-  idea.votes++;
-  idea.votedBy.push(currentUser);
-  saveIdeas();
-
-  const owner = users.find(u=>u.name===idea.username);
-  if(owner) { owner.points++; localStorage.setItem('users', JSON.stringify(users)); }
-
-  renderIdeas();
-  renderLeaderboard();
-}
-
-// -------------------- COMMENTS --------------------
-function addComment(id) {
-  const input = document.getElementById('comment-'+id);
-  const text = input.value.trim();
-  if(!text) return;
-  const idea = ideas.find(i=>i.id===id);
-  idea.comments.push({ username: currentUser, text });
-  saveIdeas();
-  input.value = '';
-  renderIdeas();
-}
-
-// -------------------- LEVELS --------------------
-function calculateLevel(points) {
-  if(points>=20) return 'Master';
-  if(points>=10) return 'Pro';
-  if(points>=5) return 'Intermediate';
-  return 'Beginner';
-}
-
-// -------------------- RENDER IDEAS --------------------
-function renderIdeas() {
-  const container = document.getElementById('ideasContainer');
-  container.innerHTML = '';
-  ideas.sort((a,b)=>b.votes-a.votes);
-  ideas.forEach(i=>{
-    const div = document.createElement('div');
-    div.className = 'idea';
-    div.innerHTML = `
-      <div><strong>${i.username}</strong> (<span class="level">${calculateLevel(users.find(u=>u.name===i.username)?.points||0)}</span>) [${i.category}]: ${i.text}</div>
-      <div>
-        <span class="votes">${i.votes} 👍</span>
-        <button onclick="vote(${i.id})">Vote</button>
-      </div>
-      <div>
-        ${i.comments.map(c=>`<div class="comment"><strong>${c.username}:</strong> ${c.text}</div>`).join('')}
-        <input type="text" id="comment-${i.id}" class="comment-input" placeholder="Add comment">
-        <button class="comment-btn" onclick="addComment(${i.id})">Comment</button>
-      </div>
-    `;
-    container.appendChild(div);
+function updateOpponentList() {
+  const select = document.getElementById('opponentSelect');
+  select.innerHTML = '<option value="">Select opponent</option>';
+  users.filter(u=>u.name!==currentUser && u.paid).forEach(u=>{
+    select.innerHTML += `<option value="${u.name}">${u.name}</option>`;
   });
+}
+
+function battle() {
+  const bot = document.getElementById('botSelect').value;
+  const opponent = document.getElementById('opponentSelect').value;
+  if(!bot || !opponent) { alert("Select your ClawBot and opponent"); return; }
+
+  const result = Math.random() < 0.5 ? currentUser : opponent;
+  const logDiv = document.getElementById('battleLog');
+  logDiv.innerHTML += `<p>${bot} vs ${opponent}'s bot: Winner - <strong>${result}</strong></p>`;
+  
+  // Update points
+  const winner = users.find(u=>u.name===result);
+  winner.points += 2;
+  winner.wins = (winner.wins||0)+1;
+
+  const loserName = result===currentUser ? opponent : currentUser;
+  const loser = users.find(u=>u.name===loserName);
+  loser.battles = (loser.battles||0)+1;
+  winner.battles = (winner.battles||0)+1;
+
+  localStorage.setItem('users', JSON.stringify(users));
+  renderLeaderboard();
 }
 
 // -------------------- LEADERBOARD --------------------
 function renderLeaderboard() {
   const container = document.getElementById('leaderboard');
   container.innerHTML = '';
-  const sorted = [...users].sort((a,b)=>b.points-a.points);
+  const sorted = [...users].filter(u=>u.paid).sort((a,b)=>b.points-a.points);
   sorted.forEach(u=>{
     const div = document.createElement('div');
-    div.innerHTML = `<strong>${u.name}</strong> - ${u.points} pts (+${u.referrals} referrals) <span class="level">(${calculateLevel(u.points)})</span>`;
+    div.innerHTML = `<strong>${u.name}</strong> - ${u.points} pts | Wins: ${u.wins||0} | Battles: ${u.battles||0}`;
     container.appendChild(div);
   });
 }
@@ -204,21 +173,25 @@ function renderChat() {
 }
 
 function sendChat() {
-  const input = document.getElementById('chatInput');
-  const text = input.value.trim();
+  const text = document.getElementById('chatInput').value.trim();
   if(!text) return alert("Type a message!");
   if(!currentUser) return alert("Login first!");
-  chat.push({ username: currentUser, text });
+  chat.push({ username:currentUser, text });
   localStorage.setItem('chat', JSON.stringify(chat));
-  input.value = '';
+  document.getElementById('chatInput').value = '';
   renderChat();
 }
 
 document.getElementById('chatSendBtn').addEventListener('click', sendChat);
 
 // -------------------- AUTO LOGIN --------------------
-if(currentUser) login();
+if(currentUser) {
+  const user = users.find(u=>u.name===currentUser);
+  if(user && user.paid) showArena();
+  else document.getElementById('loginContainer').classList.add('hidden');
+}
 
 </script>
+
 </body>
 </html>
