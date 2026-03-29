@@ -1,78 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Buildscape</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: white;
-      text-align: center;
-      padding: 40px;
-    }
-    .card {
-      background: #1e293b;
-      padding: 20px;
-      border-radius: 12px;
-      max-width: 400px;
-      margin: auto;
-    }
-    .badge {
-      font-size: 24px;
-      margin: 10px 0;
-    }
-    button {
-      background: #22c55e;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 8px;
-      color: black;
-      font-weight: bold;
-      cursor: pointer;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Buildscape</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+        input { padding: 8px; font-size: 16px; }
+        button { padding: 8px 12px; font-size: 16px; margin: 5px; cursor: pointer; }
+    </style>
 </head>
 <body>
+<script>
+    // --- Check if user is logged in ---
+    let user = JSON.parse(localStorage.getItem('user'));
 
-  <h1>🌌 Buildscape</h1>
-
-  <div class="card">
-    <h2 id="username">Welcome, Builder</h2>
-    
-    <div class="badge" id="badge">Level 1 🟢</div>
-
-    <p id="message">Your journey begins. Stay consistent.</p>
-
-    <button onclick="levelUp()">Level Up</button>
-  </div>
-
-  <script>
-    let level = localStorage.getItem("level") || 1;
-
-    function updateUI() {
-      document.getElementById("badge").innerText = "Level " + level + " 🔥";
-      
-      const messages = [
-        "Consistency builds greatness.",
-        "You're ahead of most people.",
-        "Keep going. You're building something real.",
-        "Small steps = big future.",
-        "Discipline beats motivation."
-      ];
-
-      document.getElementById("message").innerText =
-        messages[Math.floor(Math.random() * messages.length)];
+    if(user) {
+        showDashboard(user);
+    } else {
+        showLoginForm();
     }
 
-    function levelUp() {
-      level++;
-      localStorage.setItem("level", level);
-      updateUI();
+    // --- Signup function ---
+    function signup(username) {
+        if(!username) { alert("Enter a username"); return; }
+        const badge = "🌟";
+        const newUser = { username, badge, lastLogin: null };
+        localStorage.setItem('user', JSON.stringify(newUser));
+        showDashboard(newUser);
     }
 
-    updateUI();
-  </script>
+    // --- Login function ---
+    function login(username) {
+        const storedUser = JSON.parse(localStorage.getItem('user'));
+        if(storedUser && storedUser.username === username){
+            showDashboard(storedUser);
+        } else {
+            alert("User not found. Please sign up.");
+        }
+    }
 
+    // --- Dashboard display ---
+    function showDashboard(user){
+        const today = new Date().toDateString();
+        let message;
+
+        if(user.lastLogin !== today){
+            const horoscopes = [
+                "You will have a lucky day!",
+                "New opportunities are coming your way.",
+                "Today is perfect for creativity.",
+                "Your energy will attract good things!"
+            ];
+            message = horoscopes[Math.floor(Math.random() * horoscopes.length)];
+            user.lastLogin = today;
+            localStorage.setItem('user', JSON.stringify(user));
+        } else {
+            message = "Positive affirmation: You are amazing today!";
+        }
+
+        document.body.innerHTML = `
+            <h2>Welcome, ${user.username}! ${user.badge}</h2>
+            <p>${message}</p>
+            <button onclick="proceed()">Go to Level Up</button>
+            <br><br>
+            <button onclick="logout()">Logout</button>
+        `;
+    }
+
+    function logout(){
+        localStorage.removeItem('user');
+        location.reload();
+    }
+
+    // --- Show signup/login form ---
+    function showLoginForm(){
+        document.body.innerHTML = `
+            <h2>Sign Up / Login</h2>
+            <input id="username" placeholder="Enter username" />
+            <br>
+            <button onclick="signup(document.getElementById('username').value)">Sign Up</button>
+            <button onclick="login(document.getElementById('username').value)">Login</button>
+        `;
+    }
+
+    // --- Proceed to your Level Up page ---
+    function proceed(){
+        document.body.innerHTML = `
+            <h1>Level Up!</h1>
+            <p>This is your Buildscape page. 🎮</p>
+            <button onclick="location.reload()">Back to Dashboard</button>
+        `;
+    }
+</script>
 </body>
 </html>
