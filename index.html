@@ -1,184 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Buildscape</title>
-<style>
-    body { font-family: sans-serif; margin:0; padding:0; background:#f0f2f5;}
-    #loginOverlay {
-        position: fixed;
-        top:0; left:0; width:100%; height:100%;
-        background: rgba(0,0,0,0.7);
-        display: flex; justify-content: center; align-items: center;
-        z-index: 1000;
-    }
-    #loginBox {
-        background:white; padding:30px; border-radius:10px;
-        text-align:center; max-width:350px; width:80%;
-    }
-    #loginBox input, #ideaInput { width:80%; padding:8px; margin:10px 0; }
-    #loginBox button, button { padding:8px 12px; margin:5px; cursor:pointer; }
-    #dashboard { padding:20px; }
-    #userInfo { margin-bottom:20px; }
-    #ideaList { margin-top:20px; border-top:1px solid #ccc; padding-top:10px; }
-    .ideaItem { background:white; padding:10px; margin-bottom:10px; border-radius:5px; box-shadow:0 0 5px rgba(0,0,0,0.1);}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buildscape</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f0f2f5; padding: 20px; }
+    h1 { text-align: center; color: #333; }
+    .idea-form, .idea-list { max-width: 600px; margin: 20px auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    input, textarea { width: 100%; padding: 10px; margin: 8px 0; border-radius: 8px; border: 1px solid #ccc; }
+    button { padding: 10px 20px; border: none; border-radius: 8px; background: #4CAF50; color: #fff; cursor: pointer; }
+    button:hover { background: #45a049; }
+    .idea { border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; align-items: center; }
+    .votes { font-weight: bold; color: #333; }
+    .level { color: #ff9800; font-weight: bold; }
+  </style>
 </head>
 <body>
 
-<!-- Login overlay -->
-<div id="loginOverlay">
-    <div id="loginBox">
-        <h2 id="overlayTitle">Sign Up / Login</h2>
-        <input id="username" placeholder="Enter username" /><br>
-        <button onclick="signup()">Sign Up</button>
-        <button onclick="login()">Login</button>
-        <div id="dashboardMessage"></div>
-        <button id="continueBtn" style="display:none;" onclick="closeOverlay()">Continue</button>
-    </div>
-</div>
+  <h1>Buildscape - Share & Vote Ideas</h1>
 
-<!-- Main Dashboard -->
-<div id="dashboard" style="display:none;">
-    <div id="userInfo">
-        <h3 id="userDisplay"></h3>
-        <p id="dailyPrompt"></p>
-        <button onclick="levelUp()">Level Up</button>
-    </div>
+  <div class="idea-form">
+    <h2>Submit Your Idea</h2>
+    <input type="text" id="username" placeholder="Your Name">
+    <textarea id="ideaText" rows="3" placeholder="Describe your idea..."></textarea>
+    <button onclick="submitIdea()">Submit Idea</button>
+  </div>
 
-    <div id="submitIdea">
-        <input id="ideaInput" placeholder="Share your idea" />
-        <button onclick="submitIdea()">Submit Idea</button>
-    </div>
+  <div class="idea-list">
+    <h2>Ideas & Votes</h2>
+    <div id="ideasContainer"></div>
+  </div>
 
-    <div id="ideaList">
-        <h4>Community Ideas</h4>
-        <div id="ideasContainer"></div>
-    </div>
-</div>
+  <script>
+    let ideas = JSON.parse(localStorage.getItem('ideas')) || [];
 
-<script>
-let overlay = document.getElementById('loginOverlay');
-let message = document.getElementById('dashboardMessage');
-let continueBtn = document.getElementById('continueBtn');
-let overlayTitle = document.getElementById('overlayTitle');
-let dashboard = document.getElementById('dashboard');
-let userDisplay = document.getElementById('userDisplay');
-let dailyPromptEl = document.getElementById('dailyPrompt');
-let ideasContainer = document.getElementById('ideasContainer');
-
-let users = JSON.parse(localStorage.getItem('users')) || [];
-let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
-
-overlay.style.display = "flex";
-if(currentUser){ 
-    document.getElementById('username').value = currentUser.username;
-    overlayTitle.textContent = "Welcome back!";
-    showDashboard(currentUser);
-}
-
-function saveUsers(){ localStorage.setItem('users', JSON.stringify(users)); }
-
-function signup(){
-    let username = document.getElementById('username').value.trim();
-    if(!username){ alert("Enter username"); return; }
-    if(users.find(u=>u.username===username)){ alert("Username exists!"); return; }
-    currentUser = { username, badge:"🌟 Builder", level:1, xp:0, lastLogin:null, ideas:[] };
-    users.push(currentUser);
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    saveUsers();
-    overlayTitle.textContent = "Sign Up Successful!";
-    showDashboard(currentUser);
-}
-
-function login(){
-    let username = document.getElementById('username').value.trim();
-    let user = users.find(u=>u.username===username);
-    if(!user){ alert("User not found"); return; }
-    currentUser = user;
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    overlayTitle.textContent = "Welcome back!";
-    showDashboard(currentUser);
-}
-
-function showDashboard(user){
-    overlay.style.display = "flex";
-    continueBtn.style.display = "inline-block";
-    dashboard.style.display = "block";
-
-    // Daily prompt
-    const today = new Date().toDateString();
-    if(user.lastLogin!==today){
-        const prompts = [
-            "Build a mini Clawdbot command today!",
-            "Generate a new AI concept!",
-            "Try a crypto experiment today!"
-        ];
-        user.dailyMessage = prompts[Math.floor(Math.random()*prompts.length)];
-        user.lastLogin = today;
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        users = users.map(u=>u.username===user.username?user:u);
-        saveUsers();
+    function saveIdeas() {
+      localStorage.setItem('ideas', JSON.stringify(ideas));
     }
-    dailyPromptEl.textContent = "Daily Prompt: " + user.dailyMessage;
 
-    updateDashboard();
-}
+    function submitIdea() {
+      const username = document.getElementById('username').value.trim();
+      const ideaText = document.getElementById('ideaText').value.trim();
+      if (!username || !ideaText) {
+        alert('Please enter your name and idea.');
+        return;
+      }
 
-function closeOverlay(){
-    overlay.style.display = "none";
-}
+      const newIdea = {
+        id: Date.now(),
+        username: username,
+        text: ideaText,
+        votes: 0,
+        voters: [] // track who voted
+      };
+      ideas.push(newIdea);
+      saveIdeas();
+      renderIdeas();
+      document.getElementById('ideaText').value = '';
+    }
 
-function updateDashboard(){
-    userDisplay.innerHTML = `Username: ${currentUser.username}<br>Badge: ${currentUser.badge} | Level: ${currentUser.level} | XP: ${currentUser.xp}`;
+    function vote(id, voter) {
+      const idea = ideas.find(i => i.id === id);
+      if (!idea.voters.includes(voter)) {
+        idea.votes++;
+        idea.voters.push(voter);
+        saveIdeas();
+        renderIdeas();
+      } else {
+        alert('You can only vote once per idea!');
+      }
+    }
+
+    function calculateLevel(votes) {
+      if (votes >= 20) return 'Master';
+      if (votes >= 10) return 'Pro';
+      if (votes >= 5) return 'Intermediate';
+      return 'Beginner';
+    }
+
+    function renderIdeas() {
+      const container = document.getElementById('ideasContainer');
+      container.innerHTML = '';
+      ideas.sort((a,b) => b.votes - a.votes); // sort by votes
+
+      ideas.forEach(idea => {
+        const ideaDiv = document.createElement('div');
+        ideaDiv.className = 'idea';
+        ideaDiv.innerHTML = `
+          <div>
+            <strong>${idea.username}</strong> (<span class="level">${calculateLevel(idea.votes)}</span>): ${idea.text}
+          </div>
+          <div>
+            <span class="votes">${idea.votes} 👍</span>
+            <button onclick="vote(${idea.id}, prompt('Enter your name to vote:'))">Vote</button>
+          </div>
+        `;
+        container.appendChild(ideaDiv);
+      });
+    }
+
     renderIdeas();
-}
+  </script>
 
-function levelUp(){
-    currentUser.level +=1;
-    currentUser.xp +=5;
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    users = users.map(u=>u.username===currentUser.username?currentUser:u);
-    saveUsers();
-    alert(`Congrats ${currentUser.username}! You are now Level ${currentUser.level} ${currentUser.badge}`);
-    updateDashboard();
-}
-
-function submitIdea(){
-    let ideaText = document.getElementById('ideaInput').value.trim();
-    if(!ideaText){ alert("Enter an idea!"); return; }
-    let idea = { text: ideaText, votes:0, username:currentUser.username, badge:currentUser.badge };
-    currentUser.ideas.push(idea);
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    users = users.map(u=>u.username===currentUser.username?currentUser:u);
-    saveUsers();
-    document.getElementById('ideaInput').value = "";
-    renderIdeas();
-}
-
-function renderIdeas(){
-    ideasContainer.innerHTML = "";
-    users.forEach(u=>{
-        u.ideas.forEach((idea,index)=>{
-            let div = document.createElement('div');
-            div.className = "ideaItem";
-            div.innerHTML = `<strong>${u.badge} ${u.username}:</strong> ${idea.text} <br>Votes: <span id="vote-${u.username}-${index}">${idea.votes}</span> 
-            <button onclick="voteIdea('${u.username}',${index})">👍</button>`;
-            ideasContainer.appendChild(div);
-        })
-    })
-}
-
-function voteIdea(username,index){
-    let user = users.find(u=>u.username===username);
-    if(!user) return;
-    user.ideas[index].votes +=1;
-    users = users.map(u=>u.username===username?user:u);
-    saveUsers();
-    if(currentUser.username===username) currentUser=user; // update current
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    document.getElementById(`vote-${username}-${index}`).textContent = user.ideas[index].votes;
-}
-</script>
 </body>
 </html>
