@@ -1,184 +1,28 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Buildscape MVP</title>
-<style>
-  body { font-family: Arial, sans-serif; background: #f0f2f5; padding: 20px; }
-  h1,h2 { text-align: center; color: #333; }
-  .container { max-width: 600px; margin: 20px auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-  input,textarea,button { width: 100%; padding: 10px; margin: 8px 0; border-radius: 8px; border: 1px solid #ccc; }
-  button { background: #4CAF50; color: #fff; border: none; cursor: pointer; }
-  button:hover { background: #45a049; }
-  .idea { border-bottom: 1px solid #eee; padding: 10px 0; }
-  .votes { font-weight: bold; color: #333; }
-  .level { color: #ff9800; font-weight: bold; }
-  .comment { margin-left: 10px; font-size: 0.9em; color: #555; }
-  .comment-input { width: 80%; display: inline-block; }
-  .comment-btn { width: 18%; display: inline-block; padding: 6px; margin-left: 2%; }
-  .hidden { display: none; }
-</style>
-</head>
-<body>
-
-<h1>Buildscape MVP</h1>
-
-<div class="container" id="loginContainer">
-  <h2>Sign Up / Login</h2>
-  <input type="text" id="username" placeholder="Enter your name">
-  <button onclick="login()">Continue</button>
-  <p style="font-size:0.9em;color:#555;">Use a unique name. Referral code (optional) in URL like ?ref=YourFriend</p>
-</div>
-
-<div class="container hidden" id="submitContainer">
-  <h2>Submit Your Idea</h2>
-  <textarea id="ideaText" rows="3" placeholder="Your idea for ClawBot, AI, or Crypto..."></textarea>
-  <button onclick="submitIdea()">Submit Idea</button>
-</div>
-
-<div class="container hidden" id="ideasContainerBox">
-  <h2>Ideas & Votes</h2>
-  <div id="ideasContainer"></div>
-</div>
-
-<div class="container hidden" id="leaderboardContainer">
-  <h2>Leaderboard</h2>
-  <div id="leaderboard"></div>
+<div class="container" id="chatContainer">
+  <h2>Community Chat</h2>
+  <div id="chatMessages" style="height:200px; overflow-y:auto; border:1px solid #ccc; padding:10px; border-radius:8px; background:#fafafa;"></div>
+  <input type="text" id="chatInput" placeholder="Write a message..." style="width:80%; padding:8px; margin-top:5px;">
+  <button style="width:18%; padding:8px; margin-left:2%;" onclick="sendChat()">Send</button>
 </div>
 
 <script>
-// -------------------- USERS & REFERRALS --------------------
-let users = JSON.parse(localStorage.getItem('users')) || [];
-let currentUser = localStorage.getItem('currentUser') || null;
+let chat = JSON.parse(localStorage.getItem('chat')) || [];
 
-// check referral code from URL
-const urlParams = new URLSearchParams(window.location.search);
-const referralCode = urlParams.get('ref');
-
-// -------------------- IDEAS --------------------
-let ideas = JSON.parse(localStorage.getItem('ideas')) || [];
-
-// -------------------- LOGIN --------------------
-function login() {
-  const name = document.getElementById('username').value.trim();
-  if(!name) { alert("Enter a name!"); return; }
-
-  // check if user exists
-  let user = users.find(u => u.name === name);
-  if(!user) {
-    user = { name: name, points: 0, referrals: 0 };
-    users.push(user);
-
-    // track referral if present
-    if(referralCode) {
-      const referrer = users.find(u => u.name === referralCode);
-      if(referrer) { referrer.points += 1; referrer.referrals += 1; }
-    }
-  }
-
-  currentUser = name;
-  localStorage.setItem('currentUser', currentUser);
-  localStorage.setItem('users', JSON.stringify(users));
-
-  // show main interface
-  document.getElementById('loginContainer').classList.add('hidden');
-  document.getElementById('submitContainer').classList.remove('hidden');
-  document.getElementById('ideasContainerBox').classList.remove('hidden');
-  document.getElementById('leaderboardContainer').classList.remove('hidden');
-
-  renderIdeas();
-  renderLeaderboard();
+function renderChat() {
+  const container = document.getElementById('chatMessages');
+  container.innerHTML = chat.map(c=>`<div><strong>${c.username}:</strong> ${c.text}</div>`).join('');
+  container.scrollTop = container.scrollHeight; // auto scroll to bottom
 }
 
-// -------------------- IDEA SUBMISSION --------------------
-function saveIdeas() { localStorage.setItem('ideas', JSON.stringify(ideas)); }
-
-function submitIdea() {
-  const text = document.getElementById('ideaText').value.trim();
-  if(!text) { alert("Enter an idea!"); return; }
-
-  ideas.push({ id: Date.now(), username: currentUser, text: text, votes: 0, votedBy: [], comments: [] });
-  saveIdeas();
-  document.getElementById('ideaText').value = '';
-  renderIdeas();
-  renderLeaderboard();
+function sendChat() {
+  const text = document.getElementById('chatInput').value.trim();
+  if(!text || !currentUser) return;
+  chat.push({ username: currentUser, text });
+  localStorage.setItem('chat', JSON.stringify(chat));
+  document.getElementById('chatInput').value = '';
+  renderChat();
 }
 
-// -------------------- VOTING --------------------
-function vote(id) {
-  const idea = ideas.find(i => i.id === id);
-  if(idea.votedBy.includes(currentUser)) { alert("You already voted on this idea!"); return; }
-
-  idea.votes++;
-  idea.votedBy.push(currentUser);
-  saveIdeas();
-
-  // add point to idea owner
-  const owner = users.find(u => u.name === idea.username);
-  if(owner) { owner.points++; localStorage.setItem('users', JSON.stringify(users)); }
-
-  renderIdeas();
-  renderLeaderboard();
-}
-
-// -------------------- COMMENTS --------------------
-function addComment(id) {
-  const commentInput = document.getElementById('comment-'+id);
-  const text = commentInput.value.trim();
-  if(!text) return;
-  const idea = ideas.find(i => i.id === id);
-  idea.comments.push({ username: currentUser, text });
-  saveIdeas();
-  renderIdeas();
-}
-
-// -------------------- LEVELS --------------------
-function calculateLevel(points) {
-  if(points>=20) return 'Master';
-  if(points>=10) return 'Pro';
-  if(points>=5) return 'Intermediate';
-  return 'Beginner';
-}
-
-// -------------------- RENDER --------------------
-function renderIdeas() {
-  const container = document.getElementById('ideasContainer');
-  container.innerHTML = '';
-  ideas.sort((a,b)=>b.votes-a.votes);
-  ideas.forEach(i=>{
-    const div = document.createElement('div');
-    div.className = 'idea';
-    div.innerHTML = `
-      <div><strong>${i.username}</strong> (<span class="level">${calculateLevel(users.find(u=>u.name===i.username)?.points||0)}</span>): ${i.text}</div>
-      <div>
-        <span class="votes">${i.votes} 👍</span>
-        <button onclick="vote(${i.id})">Vote</button>
-      </div>
-      <div>
-        ${i.comments.map(c=>`<div class="comment"><strong>${c.username}:</strong> ${c.text}</div>`).join('')}
-        <input type="text" id="comment-${i.id}" class="comment-input" placeholder="Add comment">
-        <button class="comment-btn" onclick="addComment(${i.id})">Comment</button>
-      </div>
-    `;
-    container.appendChild(div);
-  });
-}
-
-function renderLeaderboard() {
-  const container = document.getElementById('leaderboard');
-  container.innerHTML = '';
-  const sorted = [...users].sort((a,b)=>b.points-a.points);
-  sorted.forEach(u=>{
-    const div = document.createElement('div');
-    div.innerHTML = `<strong>${u.name}</strong> - ${u.points} pts (+${u.referrals} referrals) <span class="level">(${calculateLevel(u.points)})</span>`;
-    container.appendChild(div);
-  });
-}
-
-// -------------------- AUTO LOGIN --------------------
-if(currentUser) login();
+// auto-render chat on load
+renderChat();
 </script>
-
-</body>
-</html>
